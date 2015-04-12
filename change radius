@@ -1,0 +1,6 @@
+#change select joints radius
+import maya.cmds as mc
+selection = mc.ls(type='joint')
+for x in range (0, len(selection)):
+    selection[x] = mc.setAttr(selection[x]+'.radius',0.3)
+    selection[x] = mc.setAttr(selection[x]+'.drawStyle',1)
