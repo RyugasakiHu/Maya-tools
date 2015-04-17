@@ -1,9 +1,9 @@
 #Title: rh_connectBlend.py
 #Author: Ryugasaki Hu
 #Created: April 7, 2015
-#Last Update: April 15, 2015 
-#Version: 1.00
-#Description: This script is a  Reverse Engineer Research from 
+#Last Update: April 17, 2015 
+#Version: 1.1
+#Description: This script is a Reverse Engineer Research from 
              #Jason Schleifer`s Animator Friendly Rigging mel script
              #js_connectBlendUI () and js_connectBlend ()
              #which connect a color blend between two select objects
@@ -20,7 +20,7 @@ target = 'Null'
 attrval = 'Null'
 drivenval = 'Null'
 
-def ConnecBlend():
+def ConnectBlend():
     #Create a variable for the window name
     winName = 'blend'
     winTitle = 'Connect_Blend'
@@ -39,7 +39,7 @@ def ConnecBlend():
     cmds.textFieldGrp('Attr',l='Attribute:',text='')
     cmds.columnLayout(adjustableColumn=True)
     cmds.text(l='')
-    cmds.textFieldGrp('Driv',l='Driver.attr:',text='')
+    cmds.textFieldGrp('Driv',l='Driver (optional):',text='')
     cmds.columnLayout(adjustableColumn=True)
     cmds.button(label='Contact', command='Connect()')
     cmds.columnLayout(adjustableColumn=True)
@@ -75,13 +75,16 @@ def Connect():
     attrval = cmds.textFieldGrp('Attr',query=True,text=True)
     drivenval = cmds.textFieldGrp('Driv',query=True,text=True)
     
-    #create node 
-    BC = cmds.createNode('blendColors',n = target[0] + '_' + attrval + '_blend')
+    if drivenval.find('.') == -1:
+        cmds.error('Driver must be object.attribute')
+    else:    
+        #create node 
+        BC = cmds.createNode('blendColors',n = target[0] + '_' + attrval + '_blend')
     
-    #connect node    
-    cmds.connectAttr((object1[0] + '.' + attrval),(BC + '.color2'))
-    cmds.connectAttr((object2[0] + '.' + attrval),(BC + '.color1'))
-    cmds.connectAttr((BC + '.output'),(target[0] + '.' + attrval))
-    cmds.connectAttr(drivenval,(BC + '.blender'))
+        #connect node    
+        cmds.connectAttr((object1[0] + '.' + attrval),(BC + '.color2'))
+        cmds.connectAttr((object2[0] + '.' + attrval),(BC + '.color1'))
+        cmds.connectAttr((BC + '.output'),(target[0] + '.' + attrval))
+        cmds.connectAttr(drivenval,(BC + '.blender'))
 
-ConnecBlend()    
+ConnectBlend()    
