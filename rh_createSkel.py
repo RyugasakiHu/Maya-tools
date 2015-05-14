@@ -1,15 +1,12 @@
 #Title: rh_createSkel.py
 #Author: Ryugasaki Hu
 #Created: April 22, 2015
-#Last Update: April 24, 2015 
+#Last Update: May 14, 2015 
 #Version: 1.0
 #Description:
 
 import maya.cmds as mc
-#joints = mc.ls(type='joint')
-#radius = mc.getAttr(joints[0] + '.radius')
-#print radius
-#print tx
+
 def createSkelGeolength():
     a = 1
     count = 0
@@ -63,3 +60,20 @@ def createSkelGeolength():
     mc.delete('joints' + '_geo0' + str(a))
  
 createSkelGeolength()        
+
+
+import maya.cmds as mc
+
+def shadertest():   
+    green = mc.shadingNode('lambert', asShader=True,n='green')
+    mc.setAttr(green + '.color',0,1,0,type = "double3")
+    blue = mc.shadingNode('lambert', asShader=True,n='blue')
+    mc.setAttr(blue + '.color',0,0,1,type = "double3")
+    
+    cube = mc.polyCube(n='joints' + '_geo0',sx=1,sy=1,sz=1)
+    sl = mc.select(cube[0] + '.f[0]')
+    sl = mc.select(cube[0] + '.f[2]',add=True)
+    mc.sets(sl,e=True,fe = 'greenSG')
+    #setAttr ($lambert2[0] + ".color") -type double3 0.834 0.618693 0.323592 ;
+
+shadertest()
