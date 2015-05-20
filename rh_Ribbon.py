@@ -55,7 +55,7 @@ def Barrage():
     print ribbonName,widthVal,lengthVal,UVal,VVal,ribbonOptionVal
     
     #create burbs plane
-    ribbonGeo = mc.nurbsPlane(p = (0,0,0),ax = (0,1,0),w = widthVal,lr = lengthVal,d = 3,u = UVal,v = VVal,ch = 1,n = (ribbonName + '_Rbbn01_geo_01'))
+    ribbonGeo = mc.nurbsPlane(p = (0,0,0),ax = (0,1,0),w = widthVal,lr = lengthVal,d = 3,u = UVal,v = VVal,ch = 1,n = (ribbonName + '_Rbbn01_geo_01_'))
 
     #rebuild ribbon geo
     if VVal > UVal:
@@ -72,6 +72,19 @@ def Barrage():
     if ribbonOptionVal == 1:
         mc.select(ribbonGeo[0],r = 1)
         mc.CreateHair(VVal,UVal,10,0,0,0,0,5,0,2,1,1)
-        print ribbonGeo[0]
-    
+        selFols = mc.select(ribbonName + '_Rbbn01_geo_01' + '*Follicle*',r = 1)
+        folGrp = mc.group(n = ribbonName + 'Rbbn01_fol_grp')
+        mc.parent(w = 1)
+        mc.delete('hairSystem*')
+        
+        selFols = mc.select(ribbonName + '_Rbbn01_geo_01' + '*Follicle*',r = 1)
+        sel = mc.ls(sl = 1)
+        
+        for i in range(len(sel)/2):
+            j = i + 1
+            newName = (ribbonName + '_Rbbn0' + str(j) + '_fol')
+            mc.rename(sel[i],newName)
+        
+        #CREATE JOINTS SNAPPED AND PARENTED TO THE FOLLICLE---
+        mc.select(cl = 1)    
 RH_Ribbon()    
