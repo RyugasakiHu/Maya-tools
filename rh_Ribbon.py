@@ -71,9 +71,7 @@ def Barrage():
     #CREATE THE HAIR FOLLICLES	OR POINT ON SURFACE INFO NODES ACCORDING TO THE OPTIONS SELECTED---
     if ribbonOptionVal == 1:
         mc.select(ribbonGeo[0],r = 1)
-        mc.CreateHair()
+        mc.CreateHair(VVal,UVal,10,0,0,0,0,5,0,2,1,1)
         print ribbonGeo[0]
-    
-    
     
 RH_Ribbon()    
