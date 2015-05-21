@@ -1,10 +1,13 @@
 #Title: RH_Ribbon.py
-#Author: Ryugasaki Hu
-#Created: May 19, 2015
+#Author:Suchan Raj Bajracharya
+#Collaborator: Ryugasaki Hu
+#Created: Dec 15, 2008
 #Last Update: May 21, 2015 
-#Version: 0.1
-#Description: This script is a Reverse Engineer Research from 
-            
+#Version: 0.21
+#Description: Enter the name Use this Tool to automatically create a ribbon system...
+#AAAAAAAAttention: Only tested in maya 2013 and 2015 version,
+                 # You need to change the hash manually 
+                 # At line 77 or 79 base on the version of your maya!!!
 
 import maya.cmds as mc
 
@@ -21,14 +24,14 @@ def RH_Ribbon():
     mc.textFieldGrp('RH_R_NameTFG',label = 'Ribbon_name:', text = 'Ribbon', ed = True)
     mc.columnLayout(adjustableColumn = True)
     #width
-    mc.floatSliderGrp('RH_R_WidthFSG',label = 'Width:',f = True,min = 0.1,max = 5.0,fmn = 0.1,fmx = 100,v = 0.1)
+    mc.floatSliderGrp('RH_R_WidthFSG',label = 'Width:',f = True,min = 0.1,max = 5.0,fmn = 0.1,fmx = 100,v = 1)
     mc.columnLayout(adjustableColumn = True)
     #lenth
     mc.floatSliderGrp('RH_R_LengthFSG',label = 'Length:',f = True,min = 0,max = 50,fmn = 0,fmx = 100,v = 5)
     mc.columnLayout(adjustableColumn = True)
     
     #U patch intSliderGrp 
-    mc.intSliderGrp('RH_R_UISG',label = 'U patches:',field = True,min = 1,max = 10,fmn = 1,fmx = 100,v = 5)
+    mc.intSliderGrp('RH_R_UISG',label = 'U patches:',field = True,min = 1,max = 10,fmn = 1,fmx = 100,v = 1)
     mc.columnLayout(adjustableColumn = True)
         
     #V patch intSliderGrp 
@@ -52,7 +55,6 @@ def Barrage():
     UVal = mc.intSliderGrp('RH_R_UISG',q = True,v = True)
     VVal = mc.intSliderGrp('RH_R_VISG',q = True,v = True)
     ribbonOptionVal = mc.radioButtonGrp('RH_R_ORBG',q = True,sl = True)
-    print ribbonName,widthVal,lengthVal,UVal,VVal,ribbonOptionVal
     
     #create burbs plane
     ribbonGeo = mc.nurbsPlane(p = (0,0,0),ax = (0,1,0),w = widthVal,lr = lengthVal,d = 3,u = UVal,v = VVal,ch = 1,n = (ribbonName + '_Rbbn01_geo_01_'))
@@ -71,9 +73,13 @@ def Barrage():
     #CREATE THE HAIR FOLLICLES	OR POINT ON SURFACE INFO NODES ACCORDING TO THE OPTIONS SELECTED---
     if ribbonOptionVal == 1:
         mc.select(ribbonGeo[0],r = 1)
+        #2013
         mc.CreateHair(VVal,UVal,10,0,0,0,0,5,0,1,1,1)
+        #2015
+        #mc.CreateHair(VVal,UVal,0,0,0,0,0,5,0,3,1,1)
+        
         selFols = mc.select(ribbonName + '_Rbbn01_geo_01' + '*Follicle*',r = 1)
-        folGrp = mc.group(n = ribbonName + 'Rbbn01_fol_grp')
+        folGrp = mc.group(n = ribbonName + '_Rbbn01_fol_grp')
         mc.parent(w = 1)
         mc.delete('hairSystem*')
         
@@ -89,7 +95,7 @@ def Barrage():
         mc.select(cl = 1)    
         for a in range(len(sel)/2):
             b = a + 1
-            mc.joint(n = ribbonName + '_Rbbn0' + str(b) + '_jj',p = (0,0,0))
+            mc.joint(n = ribbonName + '_Rbbn0' + str(b) + '_jj',p = (0,0,0),rad = min(widthVal,lengthVal) * .25)
             mc.parent(ribbonName + '_Rbbn0' + str(b) + '_jj',ribbonName + '_Rbbn0' + str(b) + '_fol',r = True)
             mc.select(cl = 1)
             
@@ -102,12 +108,10 @@ def Barrage():
         ribbonGeoShape = mc.ls(sl = 1)
         
         #VERIFICATION
-        if UVal > VVal:
-            
+        if UVal > VVal:            
             no  = UVal
             
-        if VVal > UVal:    
-        
+        if VVal > UVal:            
             no  = VVal
         
         ribbonPosGrpVal = mc.group(em = True,n = ribbonName + '_Rbbn01_pos_grp')
@@ -145,7 +149,7 @@ def Barrage():
             
             mc.select(cl = 1)
             
-            JJ = mc.joint(p = (0,0,0),n = ribbonName + 'Rbbn0' + str(i) + '_jj')
+            JJ = mc.joint(p = (0,0,0),rad = min(widthVal,lengthVal) * .25,n = ribbonName + 'Rbbn0' + str(i) + '_jj')
             mc.parent(JJ,posGrp,r = 1)
             
             mc.select(JJ,r = 1)
@@ -204,14 +208,9 @@ def Barrage():
     mc.pointConstraint(spLocUp,epLocUp,mpLocUp,o = (0,0,0),w = 1)
     
     #OFFSET THE POSITION OF THE UP LOCATOR---
-    if lengthVal > widthVal:
-        offsetUp = lengthVal * .25
-        
-    if widthVal > lengthVal:
-        offsetUp = widthVal * .25    
      
-    mc.setAttr(spLocUp[0] + '.ty',offsetUp * .2)
-    mc.setAttr(epLocUp[0] + '.ty',offsetUp * .2)       
+    mc.setAttr(spLocUp[0] + '.ty',min(lengthVal,widthVal) * .5)
+    mc.setAttr(epLocUp[0] + '.ty',min(lengthVal,widthVal) * .5)       
                 
     #CREATE CTRL JOINTS
     mc.select(cl = 1)
@@ -223,19 +222,19 @@ def Barrage():
         tx = widthVal * .2    
     
     #FOR START POINT JOINT---
-    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnSp01_jc')
-    mc.joint(p = (tx * .1,0,tz * .1),n = ribbonName + '_RbbnSp02_jc')
+    mc.joint(p = (0,0,0),rad = min(widthVal,lengthVal) * .5,n = ribbonName + '_RbbnSp01_jc')
+    mc.joint(p = (tx * .6,0,tz * .6),rad = min(widthVal,lengthVal) * .5,n = ribbonName + '_RbbnSp02_jc')
     mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnSp02_jc')
     
     #FOR MIDDLE POINT JOINT---
     mc.select(cl = 1)
-    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnMp01_jc')
+    mc.joint(p = (0,0,0),rad = min(widthVal,lengthVal) * .5,n = ribbonName + '_RbbnMp01_jc')
     mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnMp01_jc')
     
     #FOR END POINT JOINT---
     mc.select(cl = 1)
-    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnEp01_jc')
-    mc.joint(p = (tx * -0.1,0,tz * -0.1),n = ribbonName + '_RbbnEp02_jc')
+    mc.joint(p = (0,0,0),rad = min(widthVal,lengthVal) * .5,n = ribbonName + '_RbbnEp01_jc')
+    mc.joint(p = (tx * -0.6,0,tz * -0.6),rad = min(widthVal,lengthVal) * .5,n = ribbonName + '_RbbnEp02_jc')
     mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnEp02_jc')   
     
     #PARENT THE CONTROL JOINTS APPROPRIATLY---     
@@ -244,6 +243,40 @@ def Barrage():
     mc.parent(ribbonName + "_RbbnEp01_jc",epLocAim[0],r = 1)
     
     #APPLY THE AIM CONSTRINTS---
+    aTz = 0
+    if VVal > UVal:
+        aTz = 1
+        
+    aTx = 0
+    if UVal > VVal:
+        aTx = 1
     
+    #FOR MIDDLE POINT---
+    mc.aimConstraint(ribbonName + "_RbbnSp01_pos",ribbonName + "_RbbnMp01_aim",o = (0,0,0),w = 1,aim = (aTx * -1,0,aTz *  -1),u = (0,1,0),wut = 'object',wuo = ribbonName + '_RbbnMp01_up')
+    #FOR START POINT---
+    mc.aimConstraint(ribbonName + "_RbbnMp01_jc",ribbonName + "_RbbnSp01_aim",o = (0,0,0),w = 1,aim = (aTx,0,aTz),u = (0,1,0),wut = 'object',wuo = ribbonName + '_RbbnSp01_up')
+    #FOR END POINT---
+    mc.aimConstraint(ribbonName + "_RbbnMp01_jc",ribbonName + "_RbbnEp01_aim",o = (0,0,0),w = 1,aim = (aTx * -1,0,aTz *  -1),u = (0,1,0),wut = 'object',wuo = ribbonName + '_RbbnEp01_up')
+
+    #APPLY SKINCLUSTER---
+    mc.select(cl = 1)
+    mc.skinCluster(ribbonName + "_RbbnSp01_jc",ribbonName + "_RbbnMp01_jc",ribbonName + "_RbbnEp01_jc",ribbonName + "_Rbbn01_geo_01_",tsb = 1,ih = 1,mi = 3,dr = 4,rui = 1)
     
+    #CLEAN UP
+    mc.delete('spCltrHandle')
+    mc.delete('epCltrHandle')
+    mc.rename(ribbonName + '_Rbbn01_geo_01_',ribbonName + '_Rbbn01_geo_01')
+    
+    #GROUP THEM ALL
+    if ribbonOptionVal == 1:
+        mc.delete('pfxHair1')
+        mc.delete('nucleus1')
+        mc.group(ribbonName + '_Rbbn01_fol_grp',ribbonName + '_Rbbn01_geo_01',ribbonName + '_RbbnSp01_pos',ribbonName + '_RbbnMp01_pos',ribbonName + '_RbbnEp01_pos',n = ribbonName + "_Rbbn01_grp")
+        mc.xform(os = 1,piv = (0,0,0))
+            
+    if ribbonOptionVal == 2:
+        mc.group(ribbonName + '_Rbbn01_pos_grp',ribbonName + '_Rbbn01_geo_01',ribbonName + '_RbbnSp01_pos',ribbonName + '_RbbnMp01_pos',ribbonName + '_RbbnEp01_pos',n = ribbonName + "_Rbbn01_grp")
+        mc.xform(os = 1,piv = (0,0,0))
+        
+    print 'Target Neutralize'    
 RH_Ribbon()    
