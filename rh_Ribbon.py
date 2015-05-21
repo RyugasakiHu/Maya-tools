@@ -1,7 +1,7 @@
 #Title: RH_Ribbon.py
 #Author: Ryugasaki Hu
 #Created: May 19, 2015
-#Last Update: May 19, 2015 
+#Last Update: May 21, 2015 
 #Version: 0.1
 #Description: This script is a Reverse Engineer Research from 
             
@@ -36,7 +36,7 @@ def RH_Ribbon():
     mc.columnLayout(adjustableColumn = True)
     
     #radioButtonGrp 
-    mc.radioButtonGrp('RH_R_ORBG',nrb = 2,label = 'Ribbon options:',la2 = ['Follicle','Non - Follicle'],sl = 2)	
+    mc.radioButtonGrp('RH_R_ORBG',nrb = 2,label = 'Ribbon options:',la2 = ['Follicle','Non - Follicle'],sl = 1)	
     mc.columnLayout(adjustableColumn = True)
     mc.button(label = 'Requesting for 105 shells!', command = 'Barrage()')
     mc.columnLayout(adjustableColumn = True)
@@ -149,12 +149,101 @@ def Barrage():
             mc.parent(JJ,posGrp,r = 1)
             
             mc.select(JJ,r = 1)
-            JJOff = mc.group(n = ribbonName + "Rbbn0" + str(i) + "_jj_off")
+            JJOff = mc.group(n = ribbonName + 'Rbbn0' + str(i) + '_jj_off')
             
             mc.aimConstraint(aimGrp,JJOff,o = (0,0,0),w = 1,aim = (0,0,1),wut = 'object',wuo = upGrp,n = 'aimConstraint_0' + str(i))
 
     #CREATE SOME TEMPORARY CLUSTERS TO PLACE THE POS LOCATORS---
+    if UVal > VVal:
+        vNo = UVal + 2
+        mc.select(ribbonName + '_Rbbn01_geo_01_.cv[' + str(vNo) + '][0:1]',r = 1)
+        mc.cluster(n = 'spCltr')
+        mc.select(ribbonName + '_Rbbn01_geo_01_.cv[0][0:1]',r = 1)
+        mc.cluster(n = 'epCltr')
+        
+    if VVal > UVal:
+        vNo = VVal + 2
+        mc.select(ribbonName + '_Rbbn01_geo_01_.cv[0:1][' + str(vNo) + ']',r = 1)
+        mc.cluster(n = 'spCltr')
+        mc.select(ribbonName + '_Rbbn01_geo_01_.cv[0:1][0]',r = 1)
+        mc.cluster(n = 'epCltr')        
+        
+    #CREATE SOME LOCATORS---
+    #CREATE START POINT LOCATORS AND PARENT THEM PROPERLY---
+    spLocPos = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnSp01_pos')
+    spLocAim = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnSp01_aim')
+    spLocUp = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnSp01_up')
+    
+    mc.parent(spLocAim,spLocPos)
+    mc.parent(spLocUp,spLocPos)
+    
+    #CREATE MID POINT LOCATORS AND PARENT THEM PROPERLY---
+    mpLocPos = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnMp01_pos')
+    mpLocAim = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnMp01_aim')
+    mpLocUp = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnMp01_up')
+    
+    mc.parent(mpLocAim,mpLocPos)
+    mc.parent(mpLocUp,mpLocPos)    
+    
+    #CREATE END POINT LOCATORS AND PARENT THEM PROPERLY---
+    epLocPos = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnEp01_pos')
+    epLocAim = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnEp01_aim')
+    epLocUp = mc.spaceLocator(p = (0,0,0), n = ribbonName + '_RbbnEp01_up')
+    
+    mc.parent(epLocAim,epLocPos)
+    mc.parent(epLocUp,epLocPos)    
+    
+    #CONSTRAINT EACH LOCATORS PROPERLY---                                                   
+    mc.pointConstraint('spCltrHandle',spLocPos,o = (0,0,0),w = 1)	                                
+    mc.delete(ribbonName + '_RbbnSp01_pos_pointConstraint1')
+    
+    mc.pointConstraint('epCltrHandle',epLocPos,o = (0,0,0),w = 1)	                                
+    mc.delete(ribbonName + '_RbbnEp01_pos_pointConstraint1')
+    
+    mc.pointConstraint(spLocPos,epLocPos,mpLocPos,o = (0,0,0),w = 1)	
+    mc.pointConstraint(spLocUp,epLocUp,mpLocUp,o = (0,0,0),w = 1)
+    
+    #OFFSET THE POSITION OF THE UP LOCATOR---
+    if lengthVal > widthVal:
+        offsetUp = lengthVal * .25
+        
+    if widthVal > lengthVal:
+        offsetUp = widthVal * .25    
+     
+    mc.setAttr(spLocUp[0] + '.ty',offsetUp * .2)
+    mc.setAttr(epLocUp[0] + '.ty',offsetUp * .2)       
+                
+    #CREATE CTRL JOINTS
+    mc.select(cl = 1)
+    tx = tz = 0.0
+    if VVal > UVal:
+        tz = lengthVal * .2
+        
+    if UVal > VVal:
+        tx = widthVal * .2    
+    
+    #FOR START POINT JOINT---
+    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnSp01_jc')
+    mc.joint(p = (tx * .1,0,tz * .1),n = ribbonName + '_RbbnSp02_jc')
+    mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnSp02_jc')
+    
+    #FOR MIDDLE POINT JOINT---
+    mc.select(cl = 1)
+    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnMp01_jc')
+    mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnMp01_jc')
+    
+    #FOR END POINT JOINT---
+    mc.select(cl = 1)
+    mc.joint(p = (0,0,0),n = ribbonName + '_RbbnEp01_jc')
+    mc.joint(p = (tx * -0.1,0,tz * -0.1),n = ribbonName + '_RbbnEp02_jc')
+    mc.joint(e = 1,zso = 1,oj = 'xyz',sao = 'yup',n = ribbonName + '_RbbnEp02_jc')   
+    
+    #PARENT THE CONTROL JOINTS APPROPRIATLY---     
+    mc.parent(ribbonName + "_RbbnSp01_jc",spLocAim[0],r = 1)
+    mc.parent(ribbonName + "_RbbnMp01_jc",mpLocAim[0],r = 1)
+    mc.parent(ribbonName + "_RbbnEp01_jc",epLocAim[0],r = 1)
+    
+    #APPLY THE AIM CONSTRINTS---
     
     
-    	                                
 RH_Ribbon()    
