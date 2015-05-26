@@ -1,0 +1,48 @@
+import maya.cmds as mc
+
+#ik to fk
+l_arm_ikblend = mc.getAttr('charlie01_l_arm01_ikBlend_cc.ikBlend')
+
+if l_arm_ikblend == 1:
+    #get ik arm joint info:
+    FK_arm_ro = mc.xform('charlie01_l_arm01_ik',q = 1,ws = 1,ro = 1)
+    #set to the fk arm ctrl:
+    mc.xform('charlie01_l_arm01_cc',ws = 1,ro = (FK_arm_ro[0],FK_arm_ro[1],FK_arm_ro[2]))
+    
+    #elbow ro info:
+    FK_elbow_ro = mc.xform('charlie01_l_eblow01_ik',q = 1,ws = 1,ro = 1)    
+    #set to the fk arm ctrl:
+    mc.xform('charlie01_l_elbow01_cc',ws = 1,ro = (FK_elbow_ro[0],FK_elbow_ro[1],FK_elbow_ro[2]))        
+    
+    #wrist ro info:
+    FK_wrist_ro = mc.xform('charlie01_l_wrist01_ik',q = 1,ws = 1,ro = 1)          
+    #set to the fk arm ctrl:
+    mc.xform('charlie01_l_wrist01_cc',ws = 1,ro = (FK_wrist_ro[0],FK_wrist_ro[1],FK_wrist_ro[2]))        
+        
+    mc.setAttr('charlie01_l_arm01_ikBlend_cc.ikBlend',0)    
+
+#fk to ik:
+if l_arm_ikblend == 0:
+    
+    #get fk wrist joint trans info:
+    IK_wrist_t = mc.xform('charlie01_l_wrist01_cc',q = 1,ws = 1,t = 1)
+    #set to the ik wrist trams ctrl:
+    mc.xform('charlie01_l_arm01_ikcc',ws = 1,t = (IK_wrist_t[0],IK_wrist_t[1],IK_wrist_t[2]))
+    
+    #get fk wrist joint rotate info:
+    IK_wrist_ro = mc.xform('charlie01_l_wrist01_cc',q = 1,ws = 1,ro = 1)    
+    #set to the ik wrist rotate ctrl:
+    mc.xform('charlie01_l_arm01_ikcc',ws = 1,ro = (IK_wrist_ro[0],IK_wrist_ro[1],IK_wrist_ro[2]))                
+    
+    #get fk elbow joint trans info:
+    IK_pole_t = mc.xform('charlie01_l_eblow01_fk',q = 1,ws = 1,t = 1)          
+    #set to the ik pole vocter:
+    mc.xform('charlie01_l_elbow01_pole_cc',ws = 1,t = (IK_pole_t[0],IK_pole_t[1],IK_pole_t[2]))                 
+    
+    #for ik pole not in joints position        
+    #get fk elbow joint trans info:
+    #IK_pole_t = mc.xform('FK2',q = 1,ws = 1,t = 1)          
+    #set to the ik pole vocter:
+    #mc.xform('pole_con',ws = 1,t = (IK_pole_t[0],IK_pole_t[1],IK_pole_t[2]))    
+            
+    mc.setAttr('charlie01_l_arm01_ikBlend_cc.ikBlend',1)        
