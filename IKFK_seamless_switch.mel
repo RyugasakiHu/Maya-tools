@@ -1,0 +1,33 @@
+// fk to ik：
+$ikfkSwitch = `getAttr charlie01_l_arm01_ikBlend_cc.ikBlend`;
+if($ikfkSwitch  == 0)
+{
+$IK_wrist_t = `xform -q -ws -t charlie01_l_wrist01_cc`;
+xform  -ws  -t $IK_wrist_t[0] $IK_wrist_t[1] $IK_wrist_t[2] charlie01_l_arm01_ikcc ;
+
+
+$IK_wrist_ro = `xform -q -ws -ro charlie01_l_wrist01_cc`;
+xform  -ws  -ro $IK_wrist_ro[0] $IK_wrist_ro[1] $IK_wrist_ro[2] charlie01_l_arm01_ikcc ;
+
+$IK_elbow_t = `xform -q -ws -t charlie01_l_eblow01_fk`;
+xform  -ws  -t $IK_elbow_t[0] $IK_elbow_t[1] $IK_elbow_t[2] charlie01_l_elbow01_pole_cc;
+
+setAttr charlie01_l_arm01_ikBlend_cc.ikBlend  1;
+}
+
+
+// ik to fk：
+if($ikfkSwitch  == 1)
+{
+$FK_arm_ro = `xform -q -ws -ro charlie01_l_arm01_ik`;
+xform  -ws  -ro $FK_arm_ro[0] $FK_arm_ro[1] $FK_arm_ro[2] charlie01_l_arm01_cc;
+
+
+$FK_elbow_ro = `xform -q -ws -ro charlie01_l_eblow01_ik`;
+xform  -ws  -ro $FK_elbow_ro[0] $FK_elbow_ro[1] $FK_elbow_ro[2] charlie01_l_elbow01_cc;
+
+$FK_wrist_ro = `xform -q -ws -ro  charlie01_l_wrist01_ik`;
+xform  -ws  -ro $FK_wrist_ro[0] $FK_wrist_ro[1] $FK_wrist_ro[2] charlie01_l_wrist01_cc;
+
+setAttr charlie01_l_arm01_ikBlend_cc.ikBlend 0;
+}
