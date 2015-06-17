@@ -1,9 +1,9 @@
 import maya.cmds as cmds
 
-def addAttrTool():
+def addMultiAttr():
     #Create a variable for the window name
     winName = 'blend'
-    winTitle = 'rh_addAttr'
+    winTitle = 'rh_addMultiAttr'
     #Delete the window if it exists
     if cmds.window(winName, exists=True):
         cmds.deleteUI(winName, window=True)
@@ -24,7 +24,7 @@ def addAttrTool():
     cmds.columnLayout(adjustableColumn=True)
     #Show the window
     cmds.showWindow(winName)
-    cmds.window(winName, edit=True, width=378, height=210)
+    cmds.window(winName, edit=True, width=300, height=120)
 
 def sel():
     object = cmds.ls(selection=True)
@@ -37,10 +37,9 @@ def Connect():
     attrList = attrVal.split(',')
     minVal = cmds.floatFieldGrp('minAttr', q = True,v = True)
     maxVal = cmds.floatFieldGrp('maxAttr', q = True,v = True)
-    object = cmds.ls(selection=True)
-    
+    obj = cmds.ls(selection=True)    
     
     for attr in range(len(attrList)):          
-        cmds.addAttr(object, ln = attr, at ="float",min = minVal[0],max = maxVal[0],dv =0,h = False,k = True )
+        cmds.addAttr(obj, ln = attrList[attr], at ="float",min = minVal[0],max = maxVal[0],dv =0,h = False,k = True )
 
-addAttrTool()
+addMultiAttr()
