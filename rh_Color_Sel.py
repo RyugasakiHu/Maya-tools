@@ -12,7 +12,7 @@ def Color():
     #radioButtonGrp 
     mc.radioButtonGrp('RH_col',nrb = 3,label = 'Color:',la3 = ['Red','Blue','Yellow'],sl = 1)	
     mc.columnLayout(adjustableColumn = True)
-    mc.button(label = 'Rarget Marked!', command = 'Set_Coordinate()')
+    mc.button(label = 'Target Marked!', command = 'Set_Coordinate()')
     mc.columnLayout(adjustableColumn = True)
     #Show the window
     mc.showWindow(winName)
@@ -23,11 +23,11 @@ def Set_Coordinate():
     colorSel = mc.radioButtonGrp('RH_col',q = True,sl = True)
     sel = mc.ls(sl = 1)
     for all in sel:
-        mc.setAttr (all + ".overrideEnabled",1)        
+        mc.setAttr (all + "Shape" + ".overrideEnabled",1)        
         if colorSel == 1:
-            mc.setAttr (all + ".overrideColor",13)
+            mc.setAttr (all + "Shape" + ".overrideColor",13)
         elif colorSel == 2:
-            mc.setAttr (all + ".overrideColor",6)
+            mc.setAttr (all + "Shape" + ".overrideColor",6)
         elif colorSel == 3:
-            mc.setAttr (all + ".overrideColor",17)
+            mc.setAttr (all + "Shape" + ".overrideColor",17)
 Color()    
