@@ -1,29 +1,5 @@
 import maya.cmds as cmds
 
-sel = cmds.ls(sl=True)
-print sel
-for i in sel:
-    cmds.addAttr(i, ln = 'crul', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'scrunch', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'spread', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'crul_a', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'crul_b', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'crul_c', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'crul_d', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    
-for i in sel:
-    cmds.addAttr(i, ln = 'crul', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'thumb_crul', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'scrunch', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'thumb_scrunch', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'relax', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'cup', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
-    cmds.addAttr(i, ln = 'spread', at ="float",min = -10,max = 10,dv =0,h = False,k = True ) 
-    cmds.addAttr(i, ln = 'thumb_spread', at ="float",min = -10,max = 10,dv =0,h = False,k = True )   
-
-
-import maya.cmds as cmds
-
 def addAttrTool():
     #Create a variable for the window name
     winName = 'blend'
@@ -38,10 +14,10 @@ def addAttrTool():
     cmds.textFieldGrp('Attr',l='Attribute:',text='')   
 
     cmds.columnLayout(adjustableColumn=True)  
-    cmds.intFieldGrp(min, numberOfFields=1, label='Min Value', value1=0) 
+    cmds.floatFieldGrp('minAttr', numberOfFields=1, label='Min Value', value1=0) 
        
     cmds.columnLayout(adjustableColumn=True) 
-    cmds.intFieldGrp(max, numberOfFields=1, label='Max Value', value1=0)
+    cmds.floatFieldGrp('maxAttr', numberOfFields=1, label='Max Value', value1=0)
     
     cmds.columnLayout(adjustableColumn=True)        
     cmds.button(label='Contact', command='Connect()')
@@ -58,11 +34,13 @@ def sel():
 def Connect():
     attrVal = cmds.textFieldGrp('Attr',query=True,text=True)
     attrNum = attrVal.count(',') + 1
-    attrLen = len(attrVal)
-    new = attrVal.split(',')
-    #return 0,',',',',','    
-    #cmds.addAttr(i, ln = 'crul_a', at ="float",min = -10,max = 10,dv =0,h = False,k = True )
+    attrList = attrVal.split(',')
+    minVal = cmds.floatFieldGrp('minAttr', q = True,v = True)
+    maxVal = cmds.floatFieldGrp('maxAttr', q = True,v = True)
+    object = cmds.ls(selection=True)
     
-    print attrNum,attrLen,new,type(new),new[0]
+    
+    for attr in range(len(attrList)):          
+        cmds.addAttr(object, ln = attr, at ="float",min = minVal[0],max = maxVal[0],dv =0,h = False,k = True )
 
-addAttrTool()    
+addAttrTool()
