@@ -1,10 +1,11 @@
 #Title: rh_connectBlend.py
-#Author: Ryugasaki Hu
-#Created: April 7, 2015
+#Author: Jason Schleifer`s
+#Collaborator: Ryugasaki Hu
+#Created: I don`t know maybe decade year`s ago~
 #Last Update: April 17, 2015 
 #Version: 1.1
-#Description: This script is a Reverse Engineer Research from 
-             #Jason Schleifer`s Animator Friendly Rigging mel script
+#Description: I found this script from Jason Schleifer`s
+             # Animator Friendly Rigging mel script
              #js_connectBlendUI () and js_connectBlend ()
              #which connect a color blend between two select objects
              #then output to a target objects
@@ -12,13 +13,6 @@
              #in Jason Schleifer`s lesson he use that to IK/FK switch
 
 import maya.cmds as cmds
-
-#Global Store
-object1 = 'Null'
-object2 = 'Null'
-target = 'Null'
-attrval = 'Null'
-drivenval = 'Null'
 
 def ConnectBlend():
     #Create a variable for the window name
@@ -79,7 +73,7 @@ def Connect():
         cmds.error('Driver must be object.attribute')
     else:    
         #create node 
-        BC = cmds.createNode('blendColors',n = target[0] + '_' + attrval + '_blend')
+        BC = cmds.createNode('blendColors',n = target[0] + '_' + attrval + '_BCN')
     
         #connect node    
         cmds.connectAttr((object1[0] + '.' + attrval),(BC + '.color2'))
@@ -87,4 +81,4 @@ def Connect():
         cmds.connectAttr((BC + '.output'),(target[0] + '.' + attrval))
         cmds.connectAttr(drivenval,(BC + '.blender'))
 
-ConnectBlend()    
+ConnectBlend() 
