@@ -1,0 +1,408 @@
+## --------------------------------------------------------------------------
+## WZA_MrEyeball.py - Python Script for Maya
+## --------------------------------------------------------------------------
+##
+## DESCRIPTION:
+##      Create custom eye models. Can interactively fit and adjust pupil and 
+##      iris size to liking. Outputs to Nurbs or Polys.
+##
+## REQUIRES:
+##      Autodesk Maya
+##
+## USAGE:
+##      Simply copy to script editor and run. May also copy to shelf to make a button for quick access
+##      
+## AUTHORS:
+##      Wade Ryer [ e: waderyer@gmail.com ]
+##      http://www.waderyer.com
+##      Copyright 2014
+##      NOT FOR DISTRIBUTION
+##      FOR NON-PROFIT USE ONLY
+##
+##
+## VERSIONS:
+##      1.0     November 21th 2014       - Initial Release
+## --------------------------------------------------------------------------
+
+
+import maya.cmds as mc
+
+def mainUI():
+    mc.window(title='Mr.Eyeball')
+    mc.columnLayout()
+
+    mc.floatSliderGrp('fsgPupilPos', label='Pupil Position', field=True, minValue=8, maxValue=15.9, value=15.0, cc=setPupilPos)
+    mc.floatSliderGrp('fsgIrisPos', label='Iris Position', field=True, minValue=8, maxValue=15.9, value=13.8, cc=setIrisPos )
+    mc.colorSliderGrp('csgEyeballColor', label='Eyeball Color', rgb=(0.765, 0.722709, 0.660195), cc=setEyeballColor)
+    mc.colorSliderGrp('csgInIrisColor', label='Iris Inner Color', rgb=(0, 1, 1), cc=setIrisColor)
+    mc.colorSliderGrp('csgOutIrisColor', label='Iris Outer Color', rgb=(0.087, 0.078, 0.235), cc=setIrisColor)
+    mc.checkBoxGrp('cbgCheckFlatAddCor', numberOfCheckBoxes=2, label='', labelArray2=['Flatten Pupil Iris', 'Add Cornea'], v1=1, v2=1)
+    mc.checkBoxGrp('cbgConvertMirror', numberOfCheckBoxes=2, label='', labelArray2=['Convert To Poly', 'Mirror Geometry'], v1=1, v2=1)
+
+    mc.textFieldGrp('tfgCorneaSize', label='Cornea Size', text='1.01' )
+    mc.textFieldGrp('tfgCorneaBuldge', label='Cornea Buldge', text='1.50' )
+    mc.textFieldGrp('tfgPupilDepth', label='Pupil Z Depth', text='-0.08')
+
+    mc.button(label="Finalize", width=100, c='finalizeEye()')
+    mc.showWindow()
+
+def initSetup():
+    pupilPos=mc.floatSliderGrp('fsgPupilPos', v=True, query=True)
+    pupilPos=float(pupilPos)
+
+    irisPos=mc.floatSliderGrp('fsgIrisPos', v=True, query=True)
+    irisPos=float(irisPos)
+
+    #initial eyeball setup 
+    #Detach surface
+    mc.group(em=True,n='grpEyeball')
+    mc.sphere(ax=(0,0,1), s=16, nsp=16, name='eyeball')
+    mc.detachSurface('eyeball.u[14]', name='iris', rpo=True)
+    mc.detachSurface('iris.u[15]', name='pupil', rpo=True)
+    mc.setAttr("detachSurface2.parameter[0]", pupilPos)
+    mc.setAttr("detachSurface1.parameter[0]", irisPos)
+    
+    #Parent everything up
+    mc.parent('eyeball', 'iris', 'pupil', 'grpEyeball')
+    #Lock down everything that should be locked down:
+    #EyeGrp
+    mc.setAttr("grpEyeball.rx", lock=True, keyable=False, channelBox=False)
+    mc.setAttr("grpEyeball.ry", lock=True, keyable=False, channelBox=False)
+    mc.setAttr("grpEyeball.rz", lock=True, keyable=False, channelBox=False)
+    mc.setAttr("grpEyeball.v", lock=True, keyable=False, channelBox=False)
+
+    #Build shaders
+    mc.shadingNode('blinn', asShader=True, name='eyeballShader')
+    mc.shadingNode('blinn', asShader=True, name='irisShader')
+    mc.shadingNode('blinn', asShader=True, name='pupilShader')
+    #set pupil shader
+    mc.setAttr("pupilShader.color",0,0,0, type='double3')
+    mc.setAttr("pupilShader.specularColor",0,0,0, type='double3')
+
+    #set eyeball color
+    mc.setAttr("eyeballShader.color",0.765, 0.722709, 0.660195, type='double3')
+
+    #set iris color
+    mc.shadingNode('ramp', asTexture=True, name='IrisRamp')
+    mc.shadingNode('place2dTexture', asUtility=True, name='place2dTextureIris')
+    mc.connectAttr('place2dTextureIris.outUV', 'IrisRamp.uv')
+    mc.connectAttr('place2dTextureIris.outUvFilterSize', 'IrisRamp.uvFilterSize')
+    mc.connectAttr('IrisRamp.outColor', 'irisShader.color', force=True)
+    mc.setAttr("IrisRamp.type", 1)
+    mc.setAttr("IrisRamp.interpolation", 6)
+    mc.setAttr("IrisRamp.colorEntryList[1].position", 1)
+
+    #Rebuild Surface
+    mc.rebuildSurface("iris", ch=1, rpo=1, rt=0, end=1, kr=0, kcp=0, kc=0, su=2, du=3, sv=16, dv=3, tol=0.000328084, fr=0, dir=2)
+    mc.rebuildSurface("pupil", ch=1, rpo=1, rt=0, end=1, kr=0, kcp=0, kc=0, su=2, du=3, sv=16, dv=3, tol=0.000328084, fr=0, dir=2)
+
+    #Get inner and outer iris Colors
+    irisInColor=mc.colorSliderGrp('csgInIrisColor',rgbValue=True, query=True)
+    irisOutColor=mc.colorSliderGrp('csgOutIrisColor',rgbValue=True, query=True)
+
+    #Get Average between Inner and Outer
+    averIrisColorR=(irisInColor[0]+irisOutColor[0])/2
+    averIrisColorG=(irisInColor[1]+irisOutColor[1])/2
+    averIrisColorB=(irisInColor[2]+irisOutColor[2])/2
+
+    #Set ramp colors
+    mc.setAttr("IrisRamp.colorEntryList[0].color", irisOutColor[0], irisOutColor[1], irisOutColor[2], type='double3')
+    mc.setAttr("IrisRamp.colorEntryList[1].color", irisInColor[0], irisInColor[1], irisInColor[2], type='double3')
+    mc.setAttr("IrisRamp.defaultColor", averIrisColorR, averIrisColorG, averIrisColorB, type='double3')
+
+    #connect shaders to geo
+    mc.select('pupil')
+    mc.hyperShade( assign='pupilShader')
+
+    mc.select('iris')
+    mc.hyperShade( assign='irisShader')
+
+    mc.select('eyeball')
+    mc.hyperShade( assign='eyeballShader')
+    mc.select(cl=True)
+    print ('----- Eyeball Creation Initalized ----- ')
+
+def setPupilPos(*args):
+    pupilPos=mc.floatSliderGrp('fsgPupilPos', v=True, query=True)
+    pupilPos=float(pupilPos)
+    mc.setAttr("detachSurface2.parameter[0]", pupilPos)
+
+def setIrisPos(*args):
+    irisPos=mc.floatSliderGrp('fsgIrisPos', v=True, query=True)
+    irisPos=float(irisPos)
+    mc.setAttr("detachSurface1.parameter[0]", irisPos)
+
+def setIrisColor(*args):
+    #Get inner and outer iris Colors
+    irisInColor=mc.colorSliderGrp('csgInIrisColor',rgbValue=True, query=True)
+    irisOutColor=mc.colorSliderGrp('csgOutIrisColor',rgbValue=True, query=True)
+
+    #Get Average between Inner and Outer
+    averIrisColorR=(irisInColor[0]+irisOutColor[0])/2
+    averIrisColorG=(irisInColor[1]+irisOutColor[1])/2
+    averIrisColorB=(irisInColor[2]+irisOutColor[2])/2
+
+    #Set ramp colors
+    mc.setAttr("IrisRamp.colorEntryList[1].color", irisInColor[0], irisInColor[1], irisInColor[2], type='double3')
+    mc.setAttr("IrisRamp.colorEntryList[0].color", irisOutColor[0], irisOutColor[1], irisOutColor[2], type='double3')
+    mc.setAttr("IrisRamp.defaultColor", averIrisColorR, averIrisColorG, averIrisColorB, type='double3')
+
+
+def setEyeballColor(*args):
+    eyeballColor=mc.colorSliderGrp('csgEyeballColor',rgbValue=True, query=True)
+    mc.setAttr("eyeballShader.color", eyeballColor[0], eyeballColor[1], eyeballColor[2], type='double3')
+
+def finalizeEye():
+    #Query form
+    flattenPupilIris=mc.checkBoxGrp('cbgCheckFlatAddCor', v1=True, query=True)
+    AddCornea=mc.checkBoxGrp('cbgCheckFlatAddCor', v2=True, query=True)
+
+    convert2Poly=mc.checkBoxGrp('cbgConvertMirror', v1=True, query=True)
+    mirrorGeo=mc.checkBoxGrp('cbgConvertMirror', v2=True, query=True)
+
+
+    mc.select(cl=True)
+    #
+    if flattenPupilIris:
+        #Find center pivot for Pupil Iris
+        mc.nurbsSelect('eyeball', rightBorder=True )
+        mc.cluster( rel=True, name='pupIrisCent')
+        
+        #Create grp in place
+        mc.group(em=True, name='pupIrisCent_grp')
+        mc.pointConstraint('pupIrisCentHandle', 'pupIrisCent_grp', name='TempPCon')
+        mc.delete('TempPCon')
+        mc.delete('pupIrisCentHandle')
+        mc.select(cl=True)
+        
+        #Move Center to new Pupil Iris Center
+        PiCentPt=mc.xform('pupIrisCent_grp', query=True, translation=True, worldSpace=True)
+        mc.xform('iris',ws=True, sp=(PiCentPt[0], PiCentPt[1], PiCentPt[2]) )
+        mc.xform('pupil',ws=True, sp=(PiCentPt[0], PiCentPt[1], PiCentPt[2]) )
+        mc.setAttr("iris.scaleZ", 0)
+        mc.setAttr("pupil.scaleZ", 0)
+        mc.select("iris")
+        mc.makeIdentity(apply=True, t=0, r=0, s=1, n=2, pn=1)
+        mc.select("pupil")
+        mc.makeIdentity(apply=True, t=0, r=0, s=1, n=2, pn=1)     
+        mc.select(cl=True)
+
+        #Pupil Depth Setup
+        #Query form for Depth
+        pupilDepth=float(mc.textFieldGrp('tfgPupilDepth', text=1, q=True))
+        #Get Eye Grp Scale and adjust depth accordingly
+        eyeScale=mc.getAttr('grpEyeball.scaleX')
+        pupilDepth=pupilDepth*eyeScale
+        
+        #Pupil 100 Cluster
+        mc.select('pupil.cv[0:4][0:15]')
+        mc.cluster( rel=True, name='pupil100')
+        mc.setAttr("pupil100Handle.translateZ", pupilDepth)
+
+        #make Iris 100 Cluster
+        mc.nurbsSelect('iris', rightBorder=True )
+        mc.cluster( rel=True, name='iris100')
+        mc.setAttr("iris100Handle.translateZ", pupilDepth)
+
+        #make Iris 75 Cluster
+        mc.select('iris.cv[3][0:15]')
+        mc.cluster( rel=True, name='iris75')
+        mc.setAttr("iris75Handle.translateZ", (pupilDepth*0.75))
+
+        #make Iris 50 Cluster
+        mc.select('iris.cv[2][0:15]')
+        mc.cluster( rel=True, name='iris50')
+        mc.setAttr("iris50Handle.translateZ", (pupilDepth*0.5))
+
+        #make Iris 25Cluster
+        mc.select('iris.cv[1][0:15]')
+        mc.cluster( rel=True, name='iris25')
+        mc.setAttr("iris25Handle.translateZ", (pupilDepth*0.25))
+
+        #Delete History
+        mc.delete('iris', ch=True)
+        mc.delete('pupil', ch=True)
+        mc.delete('eyeball', ch=True)
+
+    if AddCornea:
+        mc.sphere(ax=(0,0,1), s=16, nsp=16, name='cornea')
+        mc.parent('cornea', 'grpEyeball')
+        mc.setAttr("cornea.translateX", 0)
+        mc.setAttr("cornea.translateY", 0)
+        mc.setAttr("cornea.translateZ", 0)
+        mc.setAttr("cornea.rotateX", 0)
+        mc.setAttr("cornea.rotateY", 0)
+        mc.setAttr("cornea.rotateZ", 0)
+
+        #scaleUpSlightly
+        corneaSize=float(mc.textFieldGrp('tfgCorneaSize', text=1, q=True))
+        mc.setAttr( "cornea.scaleZ", corneaSize)
+        mc.setAttr( "cornea.scaleX", corneaSize)
+        mc.setAttr( "cornea.scaleY", corneaSize)
+
+        #Build Cornea Shader
+        mc.shadingNode('phong', asShader=True, name='corneaShader')
+        mc.setAttr("corneaShader.color", 0.909, 0.994, 1, type='double3')
+        mc.setAttr("corneaShader.transparency", 0.843, 0.843, 0.843, type='double3')
+
+        #attach to geo
+        mc.select('cornea')
+        mc.hyperShade( assign='corneaShader')
+        mc.delete('pupIrisCent_grp')
+
+        #Add Buldge
+        corneaCut=str(mc.floatSliderGrp('fsgIrisPos', v=True, q=True ))
+        mc.detachSurface('cornea.u['+corneaCut+']', name='corneaBuldge', rpo=True)
+        mc.parent('corneaBuldge', 'grpEyeball')
+        #Get Buldge Centerpoint
+
+        #Find center pivot for Cornea Buldge
+        mc.nurbsSelect('cornea', rightBorder=True )
+        mc.cluster( rel=True, name='corneaCent')
+        #Create grp in place
+        mc.group(em=True, name='corneaCent_grp')
+        mc.pointConstraint('corneaCentHandle', 'corneaCent_grp', name='TempPCon')
+        mc.delete('TempPCon')
+        mc.delete('corneaCentHandle')
+        mc.select(cl=True)
+        CorCentPt=mc.xform('corneaCent_grp', query=True, translation=True, worldSpace=True)
+        mc.xform('corneaBuldge',ws=True, sp=(CorCentPt[0], CorCentPt[1], CorCentPt[2]) )
+
+        #Scale to proper size
+        buldgeSize=float(mc.textFieldGrp('tfgCorneaBuldge', text=1, q=True))
+        mc.setAttr( "corneaBuldge.scaleZ", buldgeSize)
+        mc.select(cl=True)
+        mc.delete('corneaCent_grp')
+
+        #Delete History
+        mc.delete('cornea', ch=True)
+        mc.delete('corneaBuldge', ch=True)
+        
+        
+        
+        if convert2Poly:
+            mc.nurbsToPoly("cornea", mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.1, ft=0.01, mel=0.001, d=0.1, ut=3, un=4, vt=3, vn=4, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1,name='corneaPoly')
+            mc.nurbsToPoly("corneaBuldge", mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.1, ft=0.01, mel=0.001, d=0.1, ut=3, un=4, vt=3, vn=4, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1,name='corneaBuldgePoly')
+
+            mc.polyUnite('corneaPoly', 'corneaBuldgePoly', name='outer')
+            mc.polyMergeVertex('outer', d=0.0001, am=1, ch=0)
+            mc.delete('outer', ch=True)
+            mc.delete('cornea', 'corneaBuldge')
+
+                        
+    if convert2Poly:
+        #convert to Polygons
+        mc.nurbsToPoly("eyeball", mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.1, ft=0.01, mel=0.001, d=0.1, ut=3, un=4, vt=3, vn=4, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1,name='eyeballPoly')
+        mc.nurbsToPoly("iris", mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.1, ft=0.01, mel=0.001, d=0.1, ut=3, un=4, vt=3, vn=4, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1,name='irisPoly')
+        mc.nurbsToPoly("pupil", mnd=1, ch=1, f=2, pt=1, pc=200, chr=0.1, ft=0.01, mel=0.001, d=0.1, ut=3, un=4, vt=3, vn=4, uch=0, ucr=0, cht=0.2, es=0, ntr=0, mrt=0, uss=1,name='pupilPoly')
+        mc.delete('eyeball', 'iris', 'pupil')
+
+        #polys unite!!
+        mc.polyUnite('eyeballPoly', 'irisPoly', 'pupilPoly', name='inner')
+        mc.delete('inner', ch=True)
+        eyeballPiv=mc.xform('grpEyeball', query=True, translation=True, worldSpace=True)
+        mc.xform('inner',ws=True, rp=(eyeballPiv[0], eyeballPiv[1], eyeballPiv[2]) )
+        mc.xform('outer',ws=True, rp=(eyeballPiv[0], eyeballPiv[1], eyeballPiv[2]) )
+        mc.xform('inner',ws=True, sp=(eyeballPiv[0], eyeballPiv[1], eyeballPiv[2]) )
+        mc.xform('outer',ws=True, sp=(eyeballPiv[0], eyeballPiv[1], eyeballPiv[2]) )
+
+    if mirrorGeo:
+        xval=mc.getAttr("grpEyeball.translateX")
+        
+        #Check if grpEyeball is on the RIGHT side. 
+        if xval<0:
+            #Set side names if polys
+            if mc.objExists('outer'):
+                mc.rename('outer', 'r_outer')
+                mc.rename('inner', 'r_inner')
+                mc.delete('grpEyeball')
+                #create opposite side
+                mc.group(em=True, name='grp_flipper')
+                mc.duplicate('r_outer', name='l_outer')
+                mc.duplicate('r_inner', name='l_inner')
+                mc.parent('l_outer', 'l_inner', 'grp_flipper')
+                mc.setAttr('grp_flipper.scaleX', -1)
+                mc.makeIdentity('grp_flipper.scaleX', apply=True, t=0, r=0, s=1, n=2, pn=1)
+                mc.parent('l_outer', w=True)
+                mc.parent('l_inner', w=True)
+                mc.delete('grp_flipper')
+                mc.makeIdentity('l_outer', apply=True, t=0, r=1, s=1, n=2, pn=1)
+                mc.makeIdentity('l_inner', apply=True, t=0, r=1, s=1, n=2, pn=1)
+            #Set name if Nurbs
+            if mc.objExists('eyeball'):
+                mc.rename('eyeball', 'r_eyeball')
+                mc.rename('iris', 'r_iris')
+                mc.rename('pupil', 'r_pupil')
+                mc.rename('cornea', 'r_cornea')
+                mc.rename('corneaBuldge', 'r_corneaBuldge')
+                mc.rename('grpEyeball', 'r_grpEyeball')
+                #makeLeftSide
+                mc.duplicate('r_eyeball', name='l_eyeball')
+                mc.duplicate('r_iris', name='l_iris')
+                mc.duplicate('r_pupil', name='l_pupil')
+                mc.duplicate('r_cornea', name='l_cornea')
+                mc.duplicate('r_corneaBuldge', name='l_corneaBuldge')
+                mc.group(em=True, name='l_grpEyeball')
+                mc.parent('l_eyeball', 'l_iris', 'l_pupil', 'l_cornea', 'l_corneaBuldge', 'l_grpEyeball')
+                #Flip Left side and freeze
+                mc.setAttr('l_grpEyeball.scaleX', -1)
+                mc.select('l_grpEyeball', hi=True)
+                mc.makeIdentity(apply=True, t=0, r=0, s=1, n=2, pn=1)
+                mc.select(cl=True)
+                mc.reverseSurface("l_eyeball", d=0, ch=1, rpo=1)
+                mc.reverseSurface("l_iris", d=0, ch=1, rpo=1)
+                mc.reverseSurface("l_pupil", d=0, ch=1, rpo=1)
+                mc.reverseSurface("l_cornea", d=0, ch=1, rpo=1)
+                mc.reverseSurface("l_corneaBuldge", d=0, ch=1, rpo=1)
+
+        #Check if grpEyeball is on the LEFT side.        
+        if xval>0:
+            #Set side names for polys
+            if mc.objExists('outer'):
+                mc.rename('outer', 'l_outer')
+                mc.rename('inner', 'l_inner')
+                mc.delete('grpEyeball')
+                mc.group(em=True, name='grp_flipper')
+                mc.duplicate('l_outer', name='r_outer')
+                mc.duplicate('l_inner', name='r_inner')
+                mc.parent('r_outer', 'r_inner', 'grp_flipper')
+                mc.setAttr('grp_flipper.scaleX', -1)
+                mc.makeIdentity('grp_flipper.scaleX', apply=True, t=0, r=0, s=1, n=2, pn=1)
+                mc.parent('r_outer', w=True)
+                mc.parent('r_inner', w=True)
+                mc.delete('grp_flipper')
+                mc.makeIdentity('r_outer', apply=True, t=0, r=1, s=1, n=2, pn=1)
+                mc.makeIdentity('r_inner', apply=True, t=0, r=1, s=1, n=2, pn=1)
+
+            #Set name if Nurbs
+            if mc.objExists('eyeball'):
+                mc.rename('eyeball', 'l_eyeball')
+                mc.rename('iris', 'l_iris')
+                mc.rename('pupil', 'l_pupil')
+                mc.rename('cornea', 'l_cornea')
+                mc.rename('corneaBuldge', 'l_corneaBuldge')
+                mc.rename('grpEyeball', 'l_grpEyeball')
+                #makeLeftSide
+                mc.duplicate('l_eyeball', name='r_eyeball')
+                mc.duplicate('l_iris', name='r_iris')
+                mc.duplicate('l_pupil', name='r_pupil')
+                mc.duplicate('l_cornea', name='r_cornea')
+                mc.duplicate('l_corneaBuldge', name='r_corneaBuldge')
+                mc.group(em=True, name='r_grpEyeball')
+                mc.parent('r_eyeball', 'r_iris', 'r_pupil', 'r_cornea', 'r_corneaBuldge', 'r_grpEyeball')
+                #Flip Left side and freeze
+                mc.setAttr('r_grpEyeball.scaleX', -1)
+                mc.select('r_grpEyeball', hi=True)
+                mc.makeIdentity(apply=True, t=0, r=0, s=1, n=2, pn=1)
+                mc.select(cl=True)
+                mc.reverseSurface("r_eyeball", d=0, ch=1, rpo=1)
+                mc.reverseSurface("r_iris", d=0, ch=1, rpo=1)
+                mc.reverseSurface("r_pupil", d=0, ch=1, rpo=1)
+                mc.reverseSurface("r_cornea", d=0, ch=1, rpo=1)
+                mc.reverseSurface("r_corneaBuldge", d=0, ch=1, rpo=1)
+            
+    mc.select(cl=True)
+    print ('----- Eyeball Creation Complete!! ----- ')
+
+mainUI()
+initSetup()
