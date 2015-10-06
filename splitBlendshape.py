@@ -1,3 +1,5 @@
+#comes from Jeff`s Portfolio
+
 import maya.cmds as mc
 
 percentRange = .1
