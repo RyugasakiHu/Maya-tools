@@ -1,0 +1,59 @@
+## Wade Ryer
+## waderyer@gmail.com
+## www.waderyer.com
+##
+## Mirror Shape Tool
+##   This will take a sculpted tool and create a mirrored shape of it.
+######################################################################
+
+import maya.cmds as mc
+
+def mainUI():
+    mc.window(title='Create Mirror Shape')
+    mc.columnLayout()
+    mc.textFieldButtonGrp('tfgSculptedShape', label='Sculpted Shape:', text ="", buttonLabel="<<", buttonCommand='fillField("tfgSculptedShape")')
+    mc.textFieldButtonGrp('tfgBaseShape', label='Base Shape:', text = "", buttonLabel="<<", buttonCommand='fillField("tfgBaseShape")')
+    mc.textFieldGrp('tfgNewShape', label='New Shape Name:', text = "R_NEW_SHAPE")
+    mc.button(label="Create", width=100, c='CreateMirrorShape()')
+    mc.showWindow()
+
+def fillField(fieldName):
+    selObj=mc.ls(sl=True)
+    print (selObj[0])
+    mc.textFieldButtonGrp(fieldName, edit=True,text=selObj[0])  
+    
+def CreateMirrorShape():
+    #Query form
+    sculptShape=mc.textFieldButtonGrp('tfgSculptedShape', text=True, q=True)
+    baseShape=mc.textFieldButtonGrp('tfgBaseShape', text=True, q=True)
+    newShape=mc.textFieldGrp('tfgNewShape', text=True, q=True)
+    
+    #Create Wrap and Negative shape
+    mc.duplicate(baseShape, name="baseWrap")
+    mc.duplicate(baseShape, name="baseScaleNeg")
+    
+    #Flip Scale  
+    mc.setAttr("baseScaleNeg.scaleX", -1)
+
+    #Blend Sculped shape to flipped shape
+    mc.blendShape(sculptShape, 'baseScaleNeg', name='TempBlend')
+    
+    #Create Wrap between wrap shape and Neg Shape
+    mc.select(cl=True)
+    mc.select('baseWrap')
+    mc.select('baseScaleNeg', add=True)
+    mc.CreateWrap()
+    mc.select(cl=True)
+    
+    mc.setAttr("wrap1.exclusiveBind", 1)
+
+    #Now turn on our Negated blendShpe
+    mc.setAttr("TempBlend."+sculptShape, 1)
+
+    #Duplicate Wrapped shape for final result
+    mc.duplicate('baseWrap', name=newShape)
+    
+    #Clean up setup
+    mc.delete('baseWrap', 'baseScaleNeg')
+
+mainUI()
