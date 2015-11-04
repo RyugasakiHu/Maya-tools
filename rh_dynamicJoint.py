@@ -1,8 +1,7 @@
-#Title: RH_dynamicJoint.py
+#Title: rh_dynamicJoint.py
 #Author:Ryugasaji Hu
-#Specicsal thanks:Light Chaser Animation
-#Created: Dec 15, 2008
-#Last Update: May 21, 2015
+#Created: Nov,03,2015
+#Last Update: Nov,04,2015
 #Type: Prototype 
 #Version: 0.21
 #Description:
@@ -25,7 +24,7 @@ def getUniqueName(side,baseName,suf):
     security = 1000
     
     sides = ['l','m','r']
-    suffix = ['grp','loc','jj','fk','cc','iks','ik']
+    suffix = ['grp','loc','jj','fk','cc','iks','ik','cur']
     
     if not side in sides:
         OpenMaya.MGlobal.displayError('Side is not valid')
@@ -349,32 +348,16 @@ class dynamicIkChain(BoneChain):
 #             return
 #         
         BoneChain.fromList(self, posList, orientList, autoOrient)
-        
-        #create curves
-        
-        
-        
+
 #         
 #         #create ctrl:
 #         self.__addControls() 
 #         
-#         #create ikHandle:
+        #create ikHandle:
         ikName = getUniqueName(self.side,self.baseName + self.type,'iks')
-        self.ikHandle,self.ikEffector,self.curve = pm.ikHandle(sj = self.chain[0],ee = self.chain[-1],solver = 'ikSplineSolver',n = ikName)
-#         pm.pointConstraint(self.ikCtrl.control,self.ikHandle,w = 1)
-#         
-#         #create PV 
-#         if self.type == 'ikRP':
-#             self.poleVectorCnst = pm.poleVectorConstraint(self.poleVectorCtrl.control,ikName,w = 1)
-#                          
-#             #lock and hide
-#             control.lockAndHideAttr(self.poleVectorCtrl.control,["rx","ry","rz","sx","sy","sz","v"])
-#                 
-#         #add stretch    
-#         self.__stretchIk()
-#         
-#         if self.type == 'ikRP':
-#             self.__elbowKneeLock()
+        curName = getUniqueName(self.side,self.baseName + self.type,'cur')
+        self.ikHandle,self.ikEffector,self.curve = pm.ikHandle(sj = self.chain[0],ee = self.chain[-1],solver = 'ikSplineSolver',n = ikName,ns = 3)
+        pm.rename(self.curve,curName)
 
 
 
