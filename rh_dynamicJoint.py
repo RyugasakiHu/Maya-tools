@@ -194,7 +194,7 @@ class BoneChain(object):
 ###fkChain Class
 class FkChain(BoneChain):
 
-    def __init__(self, baseName,side,size = 1.5,fkCcType = 'cc',type = 'fk',
+    def __init__(self, baseName,side,size = 1.5,fkCcType = 'shape',type = 'fk',
                  pointCnst = 1,aimAxis = axis):
         '''
         Constructor
@@ -253,7 +253,7 @@ class FkChain(BoneChain):
             #snap to the control
             #que xform
             pm.xform(ctrl.controlGrp,ws = 1,matrix = self.chain[i].worldMatrix.get())                        
-            self.controlsArray.append(ctrl.controlGrp.getChildren())                                
+            self.controlsArray.append(ctrl.controlGrp)                                
             
     def __finalizeFkChainOriCnst(self):        
            
@@ -273,22 +273,17 @@ class FkChain(BoneChain):
                 pm.pointConstraint(ctrl,self.chain[num],mo = 1)
 
     def __finalizeFkChainShape(self):
-        
-        print 'this part is passed at this version'
-#         
-#         reversedList = list(self.controlsArray)
-#         reversedList.reverse()
-#           
-#         #parent shape        
-#         for i,c in enumerate(self.controlsArray):
-#             pm.parent(c.control.getShape(),self.chain[i],r=1,s=1)
-#             
-# #             #lock and hide
-# #             control.lockAndHideAttr(self.chain[i],["tx","ty","tz","sy","sz"])
-#         
-#         #delete grp   
-#         for i in range(len(reversedList)):
-#             pm.delete(reversedList[i].controlGrp)         
+         
+        reversedList = list(self.controlsArray)
+        reversedList.reverse()
+           
+        #parent shape        
+        for i,c in enumerate(self.controlsArray):
+            pm.parent(c.getChildren()[0].getShape(),self.chain[i],r=1,s=1)
+         
+        #delete grp   
+        for i in range(len(reversedList)):
+            pm.delete(reversedList[i])         
             
     def __checkCcType(self):
         '''
@@ -335,6 +330,7 @@ class dynamicIkChain(BoneChain):
         self.ikHandle = None
         self.ikEffector = None
         self.curve = None
+        self.hairFol = None
         
         BoneChain.__init__(self,baseName,side,type = self.type)
         
@@ -351,7 +347,8 @@ class dynamicIkChain(BoneChain):
         #create ctrl:
         self.ikDymCtrl = pm.joint(p = (0,0,0),n = getUniqueName(self.side,self.baseName,'jc'))
         pm.xform(self.ikDymCtrl,ws = 1,matrix = self.chain[-1].worldMatrix.get()) 
-        pm.pointConstraint(self.ikDymCtrl,self.chain[-1])
+        pm.pointConstraint(self.chain[-1],self.ikDymCtrl)
+        lockAndHideAttr(self.ikDymCtrl,["sx","sy","sz",'tx','ty','tz','rx','ry','rz'])
         self.chain[-1].v.set(0) 
          
         #create entire
@@ -360,31 +357,36 @@ class dynamicIkChain(BoneChain):
         baseCurName = getUniqueName(self.side,self.baseName + 'Base','cur')
         dynCurName = getUniqueName(self.side,self.baseName + 'Dyn','cur')
         hairSysName = getUniqueName(self.side,self.baseName + 'Hair','sys')
-        hairFolName = getUniqueName(self.side,self.baseName,'fol')
+        self.hairFolName = getUniqueName(self.side,self.baseName,'fol')
         
         #create IK
         self.ikHandle,self.ikEffector,self.curve = pm.ikHandle(sj = self.chain[0],ee = self.chain[-1],solver = 'ikSplineSolver',n = ikName,ns = 3)
         pm.rename(self.curve,baseCurName)
         pm.select(self.curve)
+        curveShape = self.curve.getShape()
         
         
         #make curve dynamic 
         mel.eval('makeCurvesDynamicHairs 1 0 1')
         
-        hairFol = pm.listRelatives(self.curve,p = 1)
-        trashFolGrp = hairFol[0].getParent()        
-        hairFol[0].setParent(w = 1)
-        hairSys = pm.listConnections(hairFol[0] + '.outHair')
-        dynCur = pm.listConnections(hairFol[0] + '.outCurve')
+        self.hairFol = pm.listRelatives(self.curve,p = 1)
+        self.hairFol[0].pointLock.set(1)
+        trashFolGrp = self.hairFol[0].getParent()        
+        self.hairFol[0].setParent(w = 1)
+        hairSys = pm.listConnections(self.hairFol[0] + '.outHair')
+        dynCur = pm.listConnections(self.hairFol[0] + '.outCurve')
         
         pm.rename(hairSys,hairSysName)
-        pm.rename(hairFol,hairFolName)
+        pm.rename(self.hairFol,self.hairFolName)
         pm.rename(dynCur,dynCurName)
         
         trashDynCurGrp = dynCur[0].getParent()
-        hairFolGrp = pm.listRelatives(hairFol,p = 1) #gol
+        self.hairFolGrp = pm.listRelatives(self.hairFol,p = 1)
 
-        self.curve.setParent(hairFol[0])
+        self.curve.setParent(self.hairFol[0])
+#         pm.disconnectAttr(self.curve + 'Shape' + '.worldSpace[0]', self.ikHandle.inCurve)
+        pm.disconnectAttr(curveShape.worldSpace[0], self.ikHandle.inCurve)
+        dynCur[0].worldSpace[0].connect(self.ikHandle.inCurve)
         
         #clean up
         #main cc
@@ -397,29 +399,6 @@ class dynamicIkChain(BoneChain):
         #delete trash grp
         pm.delete(trashFolGrp,trashDynCurGrp)
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-    
-
 
 ###main def
 def RH_dynamicJoint():
@@ -510,20 +489,27 @@ def bringTheRain():
     guidePos = [x.getTranslation(space = 'world') for x in jointGuides]
     guideRot = [x.getRotation(space = 'world') for x in jointGuides]   
      
-#     bc = BoneChain(baseName = setUpName,side = side,type = 'jj')
-#     bc.fromList(guidePos,guideRot,autoOrient = 1)  
-#      
-#     fk = FkChain(baseName = setUpName + 'Fk',side = side,type = 'fk',aimAxis = axis)
-#     fk.fromList(guidePos,guideRot,autoOrient = 1)
-    
+    bc = BoneChain(baseName = setUpName,side = side,type = 'jj')
+    bc.fromList(guidePos,guideRot,autoOrient = 1)  
+      
+    fk = FkChain(baseName = setUpName + 'Fk',side = side,type = 'fk',aimAxis = axis)
+    fk.fromList(guidePos,guideRot,autoOrient = 1)
+     
     ik = dynamicIkChain(baseName = setUpName + 'DynIk',side = side,type = 'ik')
     ik.fromList(guidePos,guideRot,autoOrient = 1)
     
     #create main Cc
-    mainCtrl = Control(side,setUpName,size = 1.5,aimAxis = 'y') 
+    mainCtrl = Control(side,setUpName,size = 2,aimAxis = 'y') 
     mainCtrl.circleCtrl()
     
     jjPos = pm.xform(ik.chain[0],query=1,ws=1,rp=1)
     pm.move(jjPos[0],jjPos[1],jjPos[2],mainCtrl.controlGrp)
+     
+    jointGuidesGrp.setParent(mainCtrl.control) 
+    ik.hairFol[0].setParent(mainCtrl.control)
+    ik.chain[0].setParent(mainCtrl.control)
+    fk.chain[0].setParent(mainCtrl.control)
+    bc.chain[0].setParent(mainCtrl.control)
+    
     
 RH_dynamicJoint()    
