@@ -506,7 +506,7 @@ class dynamicIkChain(BoneChain):
         self.ikDymCtrl.start_curve_attract.connect(hairSys[0].getShape().startCurveAttract)
         pm.disconnectAttr(nucleus.stf,hairSys[0].getShape().startFrame)
         self.ikDymCtrl.start_frame.connect(hairSys[0].getShape().startFrame)
-        nucleus[0].v.set(0)
+        nucleus.v.set(0)
         
         #clean up
         #main cc
