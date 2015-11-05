@@ -1,12 +1,13 @@
 #Title: rh_dynamicJoint.py
 #Author:Ryugasaji Hu
 #Created: Nov,03,2015
-#Last Update: Nov,04,2015
+#Last Update: Nov,05,2015
 #Type: Prototype 
-#Version: 0.21
+#Version: 0.22
 #Description:
 
 import pymel.core as pm
+import maya.mel as mel
 import maya.OpenMaya as OpenMaya
 maya.cmds.file(f = 1,new = 1)
 
@@ -16,6 +17,7 @@ setUpName = None
 jointGuidesGrp = None 
 side = None
 axis = None
+mainCtrl = None
 
 ###function def
 ###name
@@ -24,7 +26,7 @@ def getUniqueName(side,baseName,suf):
     security = 1000
     
     sides = ['l','m','r']
-    suffix = ['grp','loc','jj','fk','cc','iks','ik','cur']
+    suffix = ['grp','loc','jj','fk','cc','iks','ik','cur','sys','fol','jc']
     
     if not side in sides:
         OpenMaya.MGlobal.displayError('Side is not valid')
@@ -328,8 +330,8 @@ class dynamicIkChain(BoneChain):
         self.__acceptedSolvers = ['ikSCsolver','ikRPsolver']
         
         #cc
-        self.ikCtrl = None
-        self.poleVectorCtrl = None
+        self.dynMainGrp = None
+        self.ikDymCtrl = None
         self.ikHandle = None
         self.ikEffector = None
         self.curve = None
@@ -343,33 +345,80 @@ class dynamicIkChain(BoneChain):
         autoOrient bool whether use autoOrient List or not
         skipLast =whether add the last jj cc
         '''
-#         res = self.__checkSolver()
-#         if not res :
-#             return
-#         
+        self.dynMainGrp = pm.group(em = 1,n = getUniqueName(self.side,self.baseName + 'Main','grp'))
         BoneChain.fromList(self, posList, orientList, autoOrient)
-
-#         
-#         #create ctrl:
-#         self.__addControls() 
-#         
-        #create ikHandle:
-        ikName = getUniqueName(self.side,self.baseName + self.type,'iks')
-        curName = getUniqueName(self.side,self.baseName + self.type,'cur')
+         
+        #create ctrl:
+        self.ikDymCtrl = pm.joint(p = (0,0,0),n = getUniqueName(self.side,self.baseName,'jc'))
+        pm.xform(self.ikDymCtrl,ws = 1,matrix = self.chain[-1].worldMatrix.get()) 
+        pm.pointConstraint(self.ikDymCtrl,self.chain[-1])
+        self.chain[-1].v.set(0) 
+         
+        #create entire
+        #perpare Name
+        ikName = getUniqueName(self.side,self.baseName,'iks')
+        baseCurName = getUniqueName(self.side,self.baseName + 'Base','cur')
+        dynCurName = getUniqueName(self.side,self.baseName + 'Dyn','cur')
+        hairSysName = getUniqueName(self.side,self.baseName + 'Hair','sys')
+        hairFolName = getUniqueName(self.side,self.baseName,'fol')
+        
+        #create IK
         self.ikHandle,self.ikEffector,self.curve = pm.ikHandle(sj = self.chain[0],ee = self.chain[-1],solver = 'ikSplineSolver',n = ikName,ns = 3)
-        pm.rename(self.curve,curName)
+        pm.rename(self.curve,baseCurName)
+        pm.select(self.curve)
+        
+        
+        #make curve dynamic 
+        mel.eval('makeCurvesDynamicHairs 1 0 1')
+        
+        hairFol = pm.listRelatives(self.curve,p = 1)
+        trashFolGrp = hairFol[0].getParent()        
+        hairFol[0].setParent(w = 1)
+        hairSys = pm.listConnections(hairFol[0] + '.outHair')
+        dynCur = pm.listConnections(hairFol[0] + '.outCurve')
+        
+        pm.rename(hairSys,hairSysName)
+        pm.rename(hairFol,hairFolName)
+        pm.rename(dynCur,dynCurName)
+        
+        trashDynCurGrp = dynCur[0].getParent()
+        hairFolGrp = pm.listRelatives(hairFol,p = 1) #gol
 
-
-
-
-
-
-
-
-
-
-
-
+        self.curve.setParent(hairFol[0])
+        
+        #clean up
+        #main cc
+        self.ikHandle.v.set(0)
+        self.ikHandle.setParent(self.dynMainGrp)
+        dynCur[0].setParent(self.dynMainGrp)
+        hairSys[0].setParent(self.dynMainGrp)
+        self.ikDymCtrl.setParent(self.dynMainGrp)
+        
+        #delete trash grp
+        pm.delete(trashFolGrp,trashDynCurGrp)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
 
 
 ###main def
@@ -430,7 +479,7 @@ def inbound():
         side = 'r'
         
     numOfJoints = pm.intSliderGrp('Joint_Num',q = True,v = True)   
-    jointGuidesGrp = pm.group(em = 1,n = getUniqueName(side,setUpName, 'grp'))                
+    jointGuidesGrp = pm.group(em = 1,n = getUniqueName(side,setUpName + 'Gud', 'grp'))                
         
     for num in range(numOfJoints):
         loc = pm.spaceLocator(n = getUniqueName(side,setUpName,'loc'))
@@ -468,6 +517,13 @@ def bringTheRain():
 #     fk.fromList(guidePos,guideRot,autoOrient = 1)
     
     ik = dynamicIkChain(baseName = setUpName + 'DynIk',side = side,type = 'ik')
-    ik.fromList(guidePos,guideRot,autoOrient = 1)  
+    ik.fromList(guidePos,guideRot,autoOrient = 1)
+    
+    #create main Cc
+    mainCtrl = Control(side,setUpName,size = 1.5,aimAxis = 'y') 
+    mainCtrl.circleCtrl()
+    
+    jjPos = pm.xform(ik.chain[0],query=1,ws=1,rp=1)
+    pm.move(jjPos[0],jjPos[1],jjPos[2],mainCtrl.controlGrp)
     
 RH_dynamicJoint()    
