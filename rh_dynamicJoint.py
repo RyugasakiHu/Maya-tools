@@ -1,9 +1,9 @@
 #Title: rh_dynamicJoint.py
-#Author:Ryugasaji Hu
+#Author:Ryugasaki Hu
 #Created: Nov,03,2015
 #Last Update: Nov,05,2015
 #Type: Prototype 
-#Version: 0.22
+#Version: 0.23
 #Description:
 
 import pymel.core as pm
@@ -18,6 +18,7 @@ jointGuidesGrp = None
 side = None
 axis = None
 mainCtrl = None
+size = None
 
 ###function def
 ###name
@@ -26,7 +27,7 @@ def getUniqueName(side,baseName,suf):
     security = 1000
     
     sides = ['l','m','r']
-    suffix = ['grp','loc','jj','fk','cc','iks','ik','cur','sys','fol','jc']
+    suffix = ['grp','loc','jj','fk','cc','iks','ik','cur','sys','fol','jc','BCN']
     
     if not side in sides:
         OpenMaya.MGlobal.displayError('Side is not valid')
@@ -83,7 +84,17 @@ def lockAndHideAttr(objName,attrs):
     
     for attr in attrs:
         pm.setAttr(objName + "." + attr,l=True,k=False,cb=False)
-
+def addFloatAttr(objName,attrs,minV,maxV):
+    
+    '''
+    this function add single/multiple attr
+    @para attrs: list 
+    '''
+    
+    if not objName:
+        return 
+    for attr in attrs:
+        pm.addAttr(objName, ln = attr, at ="double",min = minV,max = maxV,dv = 0,h = False,k = True )
 ###Control class
 class Control(object):
     
@@ -190,6 +201,57 @@ class BoneChain(object):
         for i in range(len(reversedList)):
             if i != (len(reversedList)-1):
                 pm.parent(reversedList[i],reversedList[i+1])
+                
+    @staticmethod           
+    def blendTwoChains(chain1,chain2,resChain,attrHolder,attrName,baseName,side):
+        
+        blnTArray = []
+        blnRArray = []
+        blnSArray = []
+        
+        data = {'blendTranslate':blnTArray,
+                'blendRotate':blnRArray,
+                'blendScale':blnSArray
+                }
+        
+        if attrHolder.hasAttr(attrName) == 0:
+            attrHolder.addAttr(attrName,at = 'float',min = 0,max = 1,dv = 0,k = 1)
+            
+        for i,b in enumerate(resChain):
+            
+            blnT = getUniqueName(side,baseName + 'Tra','BCN')    
+            blnR = getUniqueName(side,baseName + 'Rot','BCN') 
+            blnS = getUniqueName(side,baseName + 'Sca','BCN') 
+            
+            if not blnT or not blnR or not blnS:
+                return
+            
+            blnNodeT = pm.createNode('blendColors', n = blnT)
+            blnNodeR = pm.createNode('blendColors', n = blnR)
+            blnNodeS = pm.createNode('blendColors', n = blnS)
+            
+            chain1[i].t.connect(blnNodeT.color2)
+            chain2[i].t.connect(blnNodeT.color1)
+            
+            chain1[i].r.connect(blnNodeR.color2)
+            chain2[i].r.connect(blnNodeR.color1)
+            
+            chain1[i].s.connect(blnNodeS.color2)
+            chain2[i].s.connect(blnNodeS.color1)
+        
+            blnNodeT.output.connect(b.t)
+            blnNodeS.output.connect(b.s)
+            blnNodeR.output.connect(b.r)
+        
+            blnTArray.append(blnNodeT)
+            blnRArray.append(blnNodeR)
+            blnSArray.append(blnNodeS)
+            
+            attrHolder.attr(attrName).connect(blnNodeT.blender)
+            attrHolder.attr(attrName).connect(blnNodeR.blender)
+            attrHolder.attr(attrName).connect(blnNodeS.blender)
+        
+        return data                
 
 ###fkChain Class
 class FkChain(BoneChain):
@@ -259,8 +321,7 @@ class FkChain(BoneChain):
            
         reversedList = list(self.controlsArray)
         reversedList.reverse()
-           
-        print reversedList   
+            
         for i in range(len(reversedList)):
             if i != (len(reversedList)-1):
                 pm.parent(reversedList[i][0].getParent(),reversedList[i+1][0])
@@ -345,11 +406,22 @@ class dynamicIkChain(BoneChain):
         BoneChain.fromList(self, posList, orientList, autoOrient)
          
         #create ctrl:
-        self.ikDymCtrl = pm.joint(p = (0,0,0),n = getUniqueName(self.side,self.baseName,'jc'))
+        self.ikDymCtrl = pm.joint(p = (0,0,0),rad = self.size * 4,n = getUniqueName(self.side,self.baseName,'jc'))
         pm.xform(self.ikDymCtrl,ws = 1,matrix = self.chain[-1].worldMatrix.get()) 
         pm.pointConstraint(self.chain[-1],self.ikDymCtrl)
-        lockAndHideAttr(self.ikDymCtrl,["sx","sy","sz",'tx','ty','tz','rx','ry','rz'])
-        self.chain[-1].v.set(0) 
+        lockAndHideAttr(self.ikDymCtrl,["sx","sy","sz",'tx','ty','tz','rx','ry','rz','v'])
+        self.chain[-1].v.set(0)
+        
+        #open override
+        self.ikDymCtrl.overrideEnabled.set(1)
+        if self.side == 'm':
+            self.ikDymCtrl.overrideColor.set(17) 
+        elif self.side == 'l':
+            self.ikDymCtrl.overrideColor.set(6) 
+        elif self.side == 'r':        
+            self.ikDymCtrl.overrideColor.set(13)     
+        
+        
          
         #create entire
         #perpare Name
@@ -365,16 +437,17 @@ class dynamicIkChain(BoneChain):
         pm.select(self.curve)
         curveShape = self.curve.getShape()
         
-        
         #make curve dynamic 
         mel.eval('makeCurvesDynamicHairs 1 0 1')
         
+        #arrangement new items 
         self.hairFol = pm.listRelatives(self.curve,p = 1)
         self.hairFol[0].pointLock.set(1)
         trashFolGrp = self.hairFol[0].getParent()        
         self.hairFol[0].setParent(w = 1)
         hairSys = pm.listConnections(self.hairFol[0] + '.outHair')
         dynCur = pm.listConnections(self.hairFol[0] + '.outCurve')
+        nucleus = pm.listConnections(hairSys[0] + '.stf')[0]
         
         pm.rename(hairSys,hairSysName)
         pm.rename(self.hairFol,self.hairFolName)
@@ -384,9 +457,56 @@ class dynamicIkChain(BoneChain):
         self.hairFolGrp = pm.listRelatives(self.hairFol,p = 1)
 
         self.curve.setParent(self.hairFol[0])
-#         pm.disconnectAttr(self.curve + 'Shape' + '.worldSpace[0]', self.ikHandle.inCurve)
         pm.disconnectAttr(curveShape.worldSpace[0], self.ikHandle.inCurve)
         dynCur[0].worldSpace[0].connect(self.ikHandle.inCurve)
+        
+        #add ctrl attr
+        #stiffness
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'stiff',dv = 0.001)
+        pm.setAttr(self.ikDymCtrl + '.stiff',e = 0,keyable = 1)
+        
+        #damping
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'damping',dv = 0.05)
+        pm.setAttr(self.ikDymCtrl + '.damping',e = 0,keyable = 1)
+        
+        #drag
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'drag',dv = 0)
+        pm.setAttr(self.ikDymCtrl + '.drag',e = 0,keyable = 1)
+        
+        #friction
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'friction',dv = 0.5)
+        pm.setAttr(self.ikDymCtrl + '.friction',e = 0,keyable = 1)
+        
+        #mass
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'mass',dv = 1)
+        pm.setAttr(self.ikDymCtrl + '.mass',e = 0,keyable = 1)
+           
+        #gravity
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'gravity',dv = 0.98)
+        pm.setAttr(self.ikDymCtrl + '.gravity',e = 0,keyable = 1)
+        
+        #start_frame
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'start_frame',dv = 1)
+        pm.setAttr(self.ikDymCtrl + '.start_frame',e = 0,keyable = 1)        
+        
+        #startCurveAttraction
+        pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'start_curve_attract',dv = 0)
+        pm.setAttr(self.ikDymCtrl + '.start_curve_attract',e = 0,keyable = 1)            
+        
+#         #template
+#         pm.addAttr(self.ikDymCtrl,at = 'double',ln = 'tat',dv = 0.001)
+#         pm.setAttr(self.ikDymCtrl + '.tat',e = 0,keyable = 1)        
+
+        self.ikDymCtrl.stiff.connect(hairSys[0].getShape().stiffness)
+        self.ikDymCtrl.damping.connect(hairSys[0].getShape().damp)
+        self.ikDymCtrl.drag.connect(hairSys[0].getShape().drag)
+        self.ikDymCtrl.friction.connect(hairSys[0].getShape().friction)
+        self.ikDymCtrl.mass.connect(hairSys[0].getShape().mass)
+        self.ikDymCtrl.gravity.connect(hairSys[0].getShape().gravity)
+        self.ikDymCtrl.start_curve_attract.connect(hairSys[0].getShape().startCurveAttract)
+        pm.disconnectAttr(nucleus.stf,hairSys[0].getShape().startFrame)
+        self.ikDymCtrl.start_frame.connect(hairSys[0].getShape().startFrame)
+        nucleus[0].v.set(0)
         
         #clean up
         #main cc
@@ -395,16 +515,17 @@ class dynamicIkChain(BoneChain):
         dynCur[0].setParent(self.dynMainGrp)
         hairSys[0].setParent(self.dynMainGrp)
         self.ikDymCtrl.setParent(self.dynMainGrp)
+        self.curve.v.set(0)
+        hairSys[0].v.set(0)
         
         #delete trash grp
         pm.delete(trashFolGrp,trashDynCurGrp)
         
-
 ###main def
-def RH_dynamicJoint():
+def rh_dynamicJoint():
     #Create a variable for the window name
     winName = 'DynamicJoint'
-    winTitle = 'RH_DynamicJoint_prototype_v0.1'
+    winTitle = 'rh_DynamicJoint_prototype_v0.23'
     #Delete the window if it exists
     if pm.window(winName, exists = True):
         pm.deleteUI(winName, window = True)
@@ -416,26 +537,20 @@ def RH_dynamicJoint():
     #side
     pm.radioButtonGrp('ColSel',nrb = 3,label = 'Side:',la3 = ['l','m','r'],sl = 1)    
     pm.columnLayout(adjustableColumn = True)
-    #side
+    #axis
     pm.radioButtonGrp('AxisSel',nrb = 3,label = 'Axis:',la3 = ['x','y','z'],sl = 1)    
-    pm.columnLayout(adjustableColumn = True)        
+    pm.columnLayout(adjustableColumn = True)
+    #ccSize
+    pm.floatSliderGrp('Cc_Size',label = 'Control Size:',f = True,min = 1,max = 10,fmn = 1,fmx = 100,v = 1)
+    pm.columnLayout(adjustableColumn = True)
     #joint number
     pm.intSliderGrp('Joint_Num',label = 'Number Of Joints:',f = True,min = 4,max = 49,fmn = 1,fmx = 100,v = 4)
     pm.columnLayout(adjustableColumn = True)
-    #stiffness
-    pm.floatSliderGrp('Stiffness_Para',label = 'Stiffness:',f = True,min = 0.1,max = 50,fmn = 0.1,fmx = 100,v = 0.1)
-    pm.columnLayout(adjustableColumn = True)
-    #Damp
-    pm.floatSliderGrp('Damp_Para',label = 'Damp:',f = True,min = 0.1,max = 50,fmn = 0.1,fmx = 100,v = 0.1)
-    pm.columnLayout(adjustableColumn = True)        
-    #Friction
-    pm.floatSliderGrp('Friction_Para',label = 'Friction:',f = True,min = 1,max = 10,fmn = 0.1,fmx = 100,v = 0.1)
-    pm.columnLayout(adjustableColumn = True)
     
-    #button1
+    #inbound
     pm.button(label = 'Ready For Tasking', command = 'inbound()')
     pm.columnLayout(adjustableColumn = True)
-    #button2
+    #bringTheRain
     pm.button(label = 'Target Acquire', command = 'bringTheRain()')
     pm.columnLayout(adjustableColumn = True)    
     
@@ -446,9 +561,8 @@ def RH_dynamicJoint():
 def inbound():
     
     global jointGuides,setUpName,jointGuidesGrp,side
-  
     setUpName = pm.textFieldGrp('NameTFG', tx = True,q = True)
-    colorSel = pm.radioButtonGrp('ColSel',q = True,sl = True)
+    colorSel = pm.radioButtonGrp('ColSel',q = True,sl = True) 
     
     if colorSel == 1:
         side = 'l'
@@ -474,9 +588,9 @@ def inbound():
     
 def bringTheRain():
     
-    global jointGuides,setUpName,axis
-
+    global jointGuides,setUpName,axis,size,side
     axisSel = pm.radioButtonGrp('AxisSel',q = True,sl = True)
+    size = pm.floatSliderGrp('Cc_Size',q = True,v = True)  
     
     if axisSel == 1:
         axis = 'x'
@@ -492,24 +606,28 @@ def bringTheRain():
     bc = BoneChain(baseName = setUpName,side = side,type = 'jj')
     bc.fromList(guidePos,guideRot,autoOrient = 1)  
       
-    fk = FkChain(baseName = setUpName + 'Fk',side = side,type = 'fk',aimAxis = axis)
+    fk = FkChain(baseName = setUpName + 'Fk',side = side,size = size,type = 'fk',aimAxis = axis)
     fk.fromList(guidePos,guideRot,autoOrient = 1)
      
     ik = dynamicIkChain(baseName = setUpName + 'DynIk',side = side,type = 'ik')
     ik.fromList(guidePos,guideRot,autoOrient = 1)
     
     #create main Cc
-    mainCtrl = Control(side,setUpName,size = 2,aimAxis = 'y') 
+    mainCtrl = Control(side,setUpName,size = size * 1.5,aimAxis = axis) 
     mainCtrl.circleCtrl()
+    pm.xform(mainCtrl.controlGrp,ws = 1,matrix = ik.chain[0].worldMatrix.get()) 
+#     jjPos = pm.xform(ik.chain[0],query=1,ws=1,rp=1)
+#     pm.move(jjPos[0],jjPos[1],jjPos[2],mainCtrl.controlGrp)
     
-    jjPos = pm.xform(ik.chain[0],query=1,ws=1,rp=1)
-    pm.move(jjPos[0],jjPos[1],jjPos[2],mainCtrl.controlGrp)
-     
-    jointGuidesGrp.setParent(mainCtrl.control) 
+    blendData = BoneChain.blendTwoChains(fk.chain,ik.chain,bc.chain,
+                                         mainCtrl.control,'Dynamic',setUpName,side)
+    
+    lockAndHideAttr(mainCtrl.control , ['sx','sy','sz']) 
+    jointGuidesGrp.setParent(ik.dynMainGrp) 
     ik.hairFol[0].setParent(mainCtrl.control)
     ik.chain[0].setParent(mainCtrl.control)
     fk.chain[0].setParent(mainCtrl.control)
     bc.chain[0].setParent(mainCtrl.control)
     
     
-RH_dynamicJoint()    
+rh_dynamicJoint()    
