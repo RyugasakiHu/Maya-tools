@@ -1,0 +1,77 @@
+import maya.cmds as mc
+
+def alignObjectTool():
+    #Create a variable for the window name
+    winName = 'AOT'
+    winTitle = 'Align Object Tool'
+
+    #Delete the window if it exists
+    if pm.window(winName, exists = True):
+        pm.deleteUI(winName, window = True)
+        
+    #Build the main window
+    pm.window(winName, title = winTitle, sizeable = 0)
+    
+    pm.columnLayout(adjustableColumn = True)
+    pm.checkBox('snap',label = 'Snap',v = 0)
+    pm.checkBox('ori_cnst',label = 'Orient_Cnst')
+    pm.checkBox('name_and_snap',label = 'Name_And_Snap')
+    
+    #button
+    pm.button(label = 'Requesting for 105 shells!', command = 'Barrage()')
+    
+    #Show the window
+    pm.showWindow(winName)
+    print ''
+    print 'metal 01, this viking 07, standing by for your first marked target.'
+    
+def Barrage():
+    #collection coordinate
+    snap = pm.checkBox('snap', ed = True,q = True,v = 1)
+    ori_Cnst = pm.checkBox('ori_cnst', ed = True,q = True,v = 1)
+    name_And_Snap = pm.checkBox('name_and_snap', ed = True,q = True,v = 1)
+    
+    sl = pm.ls(sl = 1) 
+   
+    if len(sl) == 2:
+        slObj = pm.selected()
+        tar = slObj[1]
+        ori = slObj[0]
+    
+        if snap == 0 and ori_Cnst == 0 and name_And_Snap == 0:
+            print ''
+            print 'target locked'    
+        
+        if snap == 1:
+            alignObj = pm.parentConstraint(tar,ori,mo = 0)
+            pm.delete(alignObj)
+            print ''     
+            print 'target neutralized, circle back in 2 seconds'
+            
+        if ori_Cnst == 1:
+            pm.orientConstraint(ori,tar,mo = 1)
+            print ''     
+            print 'target neutralized, circle back in 2 seconds'            
+    
+        if name_And_Snap == 1 :
+            tarName = tar.name()
+            tarNameLen = len(tarName)
+            
+            split = tarName.split('_')
+            splitLen = len(split[-1])
+            
+            newName = tarName[0:tarNameLen - splitLen]
+            
+            pm.rename(ori,newName + 'cc')
+            oriGrp = pm.group(ori,n = newName + 'grp')
+            
+            alignGrp = pm.parentConstraint(tar,oriGrp,mo = 0)
+            pm.delete(alignGrp)
+            
+            print ''     
+            print 'target neutralized, circle back in 2 seconds'
+        
+    else :
+        print ''
+        print 'metal 01, viking 07 need 2 target at once'
+alignObjectTool()    

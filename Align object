@@ -1,9 +1,0 @@
-import maya.cmds as mc
-#get current selection:
-sl_item = mc.ls(selection=True)
-base = sl_item[1]
-target = sl_item[0]
-#find world location of the base object`s selection
-base_pivot = mc.xform(base,query=1,ws=1,rp=1)
-#move the target object
-mc.move(base_pivot[0],base_pivot[1],base_pivot[2],target,a=True)
