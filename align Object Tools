@@ -1,4 +1,5 @@
 import maya.cmds as mc
+import pymel.core as pm
 
 def alignObjectTool():
     #Create a variable for the window name
@@ -10,11 +11,13 @@ def alignObjectTool():
         pm.deleteUI(winName, window = True)
         
     #Build the main window
-    pm.window(winName, title = winTitle, sizeable = 0)
+    pm.window(winName, title = winTitle, sizeable = 1)
     
     pm.columnLayout(adjustableColumn = True)
     pm.checkBox('snap',label = 'Snap',v = 0)
     pm.checkBox('ori_cnst',label = 'Orient_Cnst')
+    pm.checkBox('pnt_cnst',label = 'Point_Cnst')
+    pm.checkBox('par_cnst',label = 'Parent_Cnst')
     pm.checkBox('name_and_snap',label = 'Name_And_Snap')
     
     #button
@@ -29,6 +32,8 @@ def Barrage():
     #collection coordinate
     snap = pm.checkBox('snap', ed = True,q = True,v = 1)
     ori_Cnst = pm.checkBox('ori_cnst', ed = True,q = True,v = 1)
+    pnt_Cnst = pm.checkBox('pnt_cnst',ed = True,q = True,v = 1)
+    par_Cnst = pm.checkBox('par_cnst',ed = True,q = True,v = 1)
     name_And_Snap = pm.checkBox('name_and_snap', ed = True,q = True,v = 1)
     
     sl = pm.ls(sl = 1) 
@@ -38,7 +43,7 @@ def Barrage():
         tar = slObj[1]
         ori = slObj[0]
     
-        if snap == 0 and ori_Cnst == 0 and name_And_Snap == 0:
+        if snap == 0 and ori_Cnst == 0 and pnt_Cnst == 0 and name_And_Snap == 0 and par_Cnst == 0 :
             print ''
             print 'target locked'    
         
@@ -48,10 +53,20 @@ def Barrage():
             print ''     
             print 'target neutralized, circle back in 2 seconds'
             
+        if pnt_Cnst == 1:
+            pm.pointConstraint(ori,tar,mo = 1)
+            print ''     
+            print 'target neutralized, circle back in 2 seconds' 
+
         if ori_Cnst == 1:
             pm.orientConstraint(ori,tar,mo = 1)
             print ''     
-            print 'target neutralized, circle back in 2 seconds'            
+            print 'target neutralized, circle back in 2 seconds'        
+
+        if par_Cnst == 1:
+            pm.parentConstraint(ori,tar,mo = 1)
+            print ''     
+            print 'target neutralized, circle back in 2 seconds'    
     
         if name_And_Snap == 1 :
             tarName = tar.name()
