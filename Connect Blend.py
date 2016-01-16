@@ -50,7 +50,7 @@ def sel1():
 def sel2():
     global object2
     object2 = cmds.ls(selection=True)
-    if len(object1) > 0:
+    if len(object2) > 0:
         cmds.textFieldButtonGrp('Obj2',e=True,tx=object2[0])   
 
 def selT():
