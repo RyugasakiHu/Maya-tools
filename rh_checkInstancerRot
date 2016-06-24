@@ -1,0 +1,27 @@
+import maya.cmds as mc
+import pymel.core as pm
+import math
+
+
+inst = mc.ls('instancer1')[0]
+conn = mc.listConnections( inst + '.inputPoints', source = True, destination = False, connections = False, plugs = True )
+
+ptList = []
+iamList = []
+ptList.append( conn[0][:conn[0].find( '.' )] )
+iamList.append(mc.getAttr( conn[0][:conn[0].rfind( '.' )] + '.instanceAttributeMapping' ) )
+instNum = mc.getAttr( inst + '.instanceCount' )
+
+
+print inst
+print conn
+print ptList
+print 'iamList ' + str(iamList)
+
+instNum = mc.getAttr( inst + '.instanceCount' )
+for i in range(0,instNum):
+    rotation = mc.particle( ptList, q = True, at = iamList[0][iamList[0].index( 'rotation' )+1], order = i )
+    print 'rotation ' + str(rotation)
+    rottt = mc.particle( ptList, q = True, at = 'rottt', order = i )
+    print 'rottt ' + str(rottt)
+        
