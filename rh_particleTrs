@@ -1,0 +1,10 @@
+vector $pos = particleShape2.position;
+$damn = 3.1415926 / 180;
+$degree = 360 / particleShape2.count;
+$perDegree = $degree * particleShape2.particleId;
+$rad = 18;
+$radiuSpeed = time ;
+$heightSpeed = time * 3;
+
+//particleShape2.position=<<$pos.x,sin(time + particleShape2.particleId),$pos.z>>;
+particleShape2.position=<<$rad * sin($damn * $perDegree + $radiuSpeed),sin($heightSpeed + particleShape2.particleId),$rad * cos($damn * $perDegree + $radiuSpeed)>>;
